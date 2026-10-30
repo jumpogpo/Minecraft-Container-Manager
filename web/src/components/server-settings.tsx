@@ -33,6 +33,7 @@ export function ServerSettings({
   onDnsChanged?: (joinAddress: string) => void;
 }) {
   const can = usePermissions();
+  const canChangeResources = can('servers.resources', server.id);
   const [name, setName] = useState(server.name);
   const [ramMb, setRamMb] = useState(server.ram_mb);
   const [hostPort, setHostPort] = useState(server.host_port);
@@ -301,6 +302,7 @@ export function ServerSettings({
                   min={512}
                   step={256}
                   value={ramMb}
+                  disabled={!canChangeResources}
                   onChange={(e) => setRamMb(Number(e.target.value))}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -331,6 +333,7 @@ export function ServerSettings({
                     <input
                       type="checkbox"
                       checked={hostPort === 0}
+                      disabled={!canChangeResources}
                       onChange={(e) => setHostPort(e.target.checked ? 0 : 25565)}
                       className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
                     />
@@ -349,6 +352,7 @@ export function ServerSettings({
                     min={0}
                     max={65535}
                     value={hostPort}
+                    disabled={!canChangeResources}
                     onChange={(e) => setHostPort(Number(e.target.value))}
                   />
                 )}
@@ -399,7 +403,7 @@ export function ServerSettings({
                   </div>
                 )}
               </div>
-              <fieldset className="space-y-3">
+              <fieldset className="space-y-3" disabled={!canChangeResources}>
                 <legend className="text-sm font-medium">Additional ports</legend>
                 <p className="text-xs text-muted-foreground">
                   Publish extra container ports to the host (e.g. a WebUI over TCP or
@@ -496,6 +500,7 @@ export function ServerSettings({
                   min={0}
                   step={0.5}
                   value={cpuLimit}
+                  disabled={!canChangeResources}
                   onChange={(e) => setCpuLimit(Number(e.target.value))}
                 />
                 <p className="text-xs text-muted-foreground">0 means no CPU quota.</p>
@@ -508,11 +513,15 @@ export function ServerSettings({
                   min={0}
                   step={64}
                   value={memoryLimitMb}
+                  disabled={!canChangeResources}
                   onChange={(e) => setMemoryLimitMb(Number(e.target.value))}
                 />
                 <p className="text-xs text-muted-foreground">0 allows the configured server RAM plus 2 GiB of overhead.</p>
               </div>
             </div>
+          )}
+          {!canChangeResources && (
+            <p className="text-xs text-muted-foreground">Memory, CPU, and ports need the Change resources permission.</p>
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}
           {savedNotice && (

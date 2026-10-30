@@ -20,7 +20,14 @@ export const demoPermissionCatalog: PermissionCatalog = {
       "id": "servers.edit",
       "group": "Servers",
       "label": "Edit configuration",
-      "description": "Change server settings, properties and runtime configuration.",
+      "description": "Change server settings, properties and runtime configuration, except resources.",
+      "server_scoped": true
+    },
+    {
+      "id": "servers.resources",
+      "group": "Servers",
+      "label": "Change resources",
+      "description": "Change memory, CPU limits and published ports. Also requires edit configuration.",
       "server_scoped": true
     },
     {
@@ -285,6 +292,7 @@ export const demoPermissionCatalog: PermissionCatalog = {
         "servers.view",
         "servers.create",
         "servers.edit",
+        "servers.resources",
         "servers.delete",
         "servers.power",
         "servers.rebuild",

@@ -38,6 +38,8 @@ export function UserAccessEditor({ value, onChange, catalog, self = false }: {
     if (checked && readPermissions[permission]) permissions.push(readPermissions[permission]);
     if (checked && permission === 'servers.copy') permissions.push('servers.create', 'files.read');
     if (!checked && ['servers.create', 'files.read'].includes(permission)) permissions = permissions.filter((p) => p !== 'servers.copy');
+    if (checked && permission === 'servers.resources') permissions.push('servers.edit');
+    if (!checked && permission === 'servers.edit') permissions = permissions.filter((p) => p !== 'servers.resources');
     if (checked && permission === 'schedules.manage') permissions.push('servers.power', 'console.write', 'backups.create');
     if (!checked && ['servers.power', 'console.write', 'backups.create'].includes(permission)) permissions = permissions.filter((p) => p !== 'schedules.manage');
     if (!checked && permission === 'servers.view') permissions = permissions.filter((p) => p !== 'servers.create' && !catalog.permissions.find((entry) => entry.id === p)?.server_scoped);

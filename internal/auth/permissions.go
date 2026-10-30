@@ -20,7 +20,8 @@ type Permission struct {
 var PermissionCatalog = []Permission{
 	{"servers.view", "Servers", "View servers", "List accessible servers and their status.", true},
 	{"servers.create", "Servers", "Create servers", "Create servers. Requires access to all servers.", false},
-	{"servers.edit", "Servers", "Edit configuration", "Change server settings, properties and runtime configuration.", true},
+	{"servers.edit", "Servers", "Edit configuration", "Change server settings, properties and runtime configuration, except resources.", true},
+	{"servers.resources", "Servers", "Change resources", "Change memory, CPU limits and published ports. Also requires edit configuration.", true},
 	{"servers.delete", "Servers", "Delete servers", "Permanently remove servers and their data.", true},
 	{"servers.power", "Servers", "Power controls", "Start, stop, restart and force kill servers.", true},
 	{"servers.rebuild", "Servers", "Install and rebuild", "Install software and recreate containers.", true},
@@ -165,6 +166,9 @@ func (a *Access) Normalize() error {
 	}
 	if a.Has("servers.copy") && (!a.Has("servers.create") || !a.Has("files.read")) {
 		return errors.New("copying servers also requires servers.create and files.read")
+	}
+	if a.Has("servers.resources") && !a.Has("servers.edit") {
+		return errors.New("changing resources also requires servers.edit")
 	}
 	if a.Has("schedules.manage") {
 		for _, p := range []string{"servers.power", "console.write", "backups.create"} {

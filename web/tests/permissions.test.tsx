@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryHistory, createRouter, createRootRoute, RouterProvider } from '@tanstack/react-router';
@@ -11,6 +11,7 @@ import { api } from '../src/api/client';
 import { routeTree } from '../src/routeTree.gen';
 import { adminUser, renderWithUser } from '../src/test/auth';
 import { ServerQuickActions } from '../src/components/server-quick-actions';
+import { ServerSettings } from '../src/components/server-settings';
 
 const viewer: Me = { id: 'viewer', email: 'viewer@example.test', role: 'viewer', permissions: catalog.roles.find((r) => r.id === 'viewer')!.permissions, server_ids: ['demo'], all_servers: false, disabled: false };
 
@@ -38,6 +39,43 @@ describe('permission presentation', () => {
     const router = createRouter({ routeTree: route, history: createMemoryHistory({ initialEntries: ['/'] }) });
     renderWithUser(<RouterProvider router={router} />, viewer);
     expect(await screen.findByRole('button', { name: 'Stop Demo' })).toBeDisabled();
+  });
+});
+
+describe('resource permission', () => {
+  const server = { id: 'demo', name: 'Demo', server_type: 'paper', version: '1.21.4', build: '145', ram_mb: 2048, cpu_limit: 0, memory_limit_mb: 0, host_port: 25565, extra_ports: [], container_id: '', state: 'stopped', created_at: '', updated_at: '' } as never;
+  const operator: Me = { ...viewer, role: 'operator', permissions: catalog.roles.find((r) => r.id === 'operator')!.permissions };
+
+  async function renderSettings(user: Me) {
+    vi.spyOn(api, 'javaVersions').mockResolvedValue([]);
+    vi.spyOn(api, 'listServers').mockResolvedValue([]);
+    vi.spyOn(api, 'availablePorts').mockResolvedValue({ available: [], used: [] });
+    renderWithUser(<ServerSettings server={server} onSaved={() => {}} />, user);
+    // Let the settings form finish loading ports and Java versions.
+    await act(async () => {});
+  }
+
+  it('locks memory and ports for operators but keeps configuration editable', async () => {
+    await renderSettings(operator);
+    expect(screen.getByLabelText('Name')).toBeEnabled();
+    expect(screen.getByLabelText('RAM (MB)')).toBeDisabled();
+    expect(screen.getByLabelText('Game port (host)')).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Add port/ })).toBeDisabled();
+    expect(screen.getByText('Memory, CPU, and ports need the Change resources permission.')).toBeInTheDocument();
+  });
+
+  it('allows resource changes for administrators', async () => {
+    await renderSettings(adminUser);
+    expect(screen.getByLabelText('RAM (MB)')).toBeEnabled();
+    expect(screen.queryByText(/need the Change resources permission/)).not.toBeInTheDocument();
+  });
+
+  it('adds edit configuration when granting resources in the editor', async () => {
+    render(<Editor initial={{ ...defaultAccess(), role: 'custom' }} />);
+    await userEvent.click(screen.getByRole('checkbox', { name: /^Change resources / }));
+    expect(JSON.parse(screen.getByTestId('access').textContent!).permissions).toEqual(expect.arrayContaining(['servers.view', 'servers.edit', 'servers.resources']));
+    await userEvent.click(screen.getByRole('checkbox', { name: /^Edit configuration / }));
+    expect(JSON.parse(screen.getByTestId('access').textContent!).permissions).not.toContain('servers.resources');
   });
 });
 

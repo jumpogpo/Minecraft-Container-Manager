@@ -610,15 +610,17 @@ Use **Users** to create accounts, select a role, assign servers, disable sign-in
 | Role | Access |
 | --- | --- |
 | Administrator | Every server and all panel administration. |
-| Operator | Operates assigned servers; edits configuration, files, mods and worlds; manages players, schedules and profiling; creates and downloads backups. Cannot delete servers, restore/delete backups, or administer the panel. |
+| Operator | Operates assigned servers; edits configuration, files, mods and worlds; manages players, schedules and profiling; creates and downloads backups. Cannot change memory, CPU or ports, delete servers, restore/delete backups, or administer the panel. |
 | Viewer | Reads assigned server status, console, logs, players, installed content, worlds, backup lists, schedules and monitoring. Cannot change server data or download files/backups. |
-| Custom | An explicit selection from 39 capabilities, grouped by feature. |
+| Custom | An explicit selection from 40 capabilities, grouped by feature. |
 
 Existing accounts retain administrator access when the database migrates. Onboarding creates an administrator. New API accounts default to Viewer with **no server access**. Select individual servers or enable **All current and future servers**. The same permissions apply to every assigned server; global panel capabilities are independent of server selection.
 
 The API checks capabilities and server scope on every authenticated request, including backup downloads/deletion and console/task/backup streams. Server lists and update-check results exclude inaccessible servers. Access changes revoke the target account’s sessions, preserving the acting session only when editing your own active account. Open event streams recheck access within five seconds. Disabled accounts cannot use passwords, passkeys, or existing sessions. The database prevents disabling, deleting, or demoting the last active administrator. Every active user can still edit their own email/password and manage their own MFA/passkeys.
 
 Permissions for creating servers require access to all servers. Copying also requires `servers.create` and `files.read`. Server capabilities require `servers.view`. Managing persistent schedules requires `servers.power`, `console.write`, and `backups.create`; saved schedules remain shared server automation until paused or removed. Player OP/de-OP actions additionally require `ops.manage`, and custom player commands require `console.write`.
+
+`servers.resources` controls memory, CPU limits, the host game port and additional ports; it requires `servers.edit`, which covers the rest of the server configuration. Custom accounts that had `servers.edit` before this permission existed receive `servers.resources` on upgrade.
 
 The permission descriptions identify sensitive capabilities: file access and archives can contain secrets; writing files, restoring backups, installing content, and console commands grant broad control over an assigned Minecraft server. `users.manage` includes creating administrators and resetting other users’ passwords. `settings.manage` includes shared credentials, while `panel.update` and `updates.manage` control application updates and global update checks respectively.
 

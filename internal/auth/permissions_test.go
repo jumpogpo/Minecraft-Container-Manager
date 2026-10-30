@@ -18,6 +18,13 @@ func TestAccessPresetsAndValidation(t *testing.T) {
 			t.Fatalf("unexpected admin access for %s", role.ID)
 		}
 	}
+	operator := Access{Role: "operator", AllServers: true}
+	if !operator.Has("servers.edit") || operator.Has("servers.resources") {
+		t.Fatal("operators edit configuration but not resources")
+	}
+	if !(Access{Role: "administrator"}).Has("servers.resources") {
+		t.Fatal("administrators change resources")
+	}
 	viewer := Access{Role: "viewer", ServerIDs: []string{"one"}}
 	if !viewer.Can("console.read", "one") || viewer.Can("console.write", "one") || viewer.Can("console.read", "two") {
 		t.Fatal("viewer or scope bypass")
@@ -30,6 +37,7 @@ func TestAccessPresetsAndValidation(t *testing.T) {
 		{Role: "invalid"}, {Role: "custom", Permissions: []string{"*"}},
 		{Role: "custom", Permissions: []string{"servers.create"}},
 		{Role: "custom", Permissions: []string{"schedules.manage"}, AllServers: true},
+		{Role: "custom", Permissions: []string{"servers.view", "servers.resources"}, AllServers: true},
 	} {
 		if err := access.Normalize(); err == nil {
 			t.Fatalf("accepted invalid access: %+v", access)

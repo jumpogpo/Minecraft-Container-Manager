@@ -89,6 +89,17 @@ func (s *Server) handleUpdateServer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_request", "invalid JSON body")
 		return
 	}
+	if !s.currentUser(r).Can("servers.resources", r.PathValue("id")) {
+		cur, err := s.servers.Get(r.Context(), r.PathValue("id"))
+		if err != nil {
+			s.writeServerErr(w, err)
+			return
+		}
+		if in.ChangesResources(cur) {
+			permissionDenied(w)
+			return
+		}
+	}
 	srv, err := s.servers.Update(r.Context(), r.PathValue("id"), in)
 	if err != nil {
 		s.writeServerErr(w, err)

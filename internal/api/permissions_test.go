@@ -311,3 +311,56 @@ func TestPermissionStreamClosesAfterRevocation(t *testing.T) {
 		t.Fatal("revoked stream remained open")
 	}
 }
+
+func TestResourceChangesRequireResourcePermission(t *testing.T) {
+	store, _ := newUsersTestServer(t)
+	ctx := context.Background()
+	users := auth.NewUsers(store.DB)
+	sessions := auth.NewManager(store.DB)
+	handler := New(Options{DB: store, Users: users, Sessions: sessions, Servers: servers.NewStore(store, nil, nil, 25565, 25665, t.TempDir(), "")})
+	if _, err := users.Create(ctx, "admin@example.test", "hash"); err != nil {
+		t.Fatal(err)
+	}
+	seedPermissionServer(t, store, "one", 25565)
+	operator, err := users.CreateWithAccess(ctx, "operator@example.test", "hash", auth.Access{Role: "operator", ServerIDs: []string{"one"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := sessions.Create(ctx, operator.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The settings form resends every field; unchanged resources are allowed.
+	rr := permissionRequest(t, handler, token, "PATCH", "/api/servers/one", `{"name":"renamed","ram_mb":1024,"host_port":25565,"cpu_limit":0,"memory_limit_mb":0,"extra_ports":[]}`)
+	if rr.Code != 200 {
+		t.Fatalf("operator configuration edit: %d %s", rr.Code, rr.Body.String())
+	}
+	for _, body := range []string{
+		`{"ram_mb":2048}`,
+		`{"cpu_limit":2}`,
+		`{"memory_limit_mb":4096}`,
+		`{"host_port":25570}`,
+		`{"extra_ports":[{"id":"web","host_port":25571,"container_port":8100,"protocol":"tcp"}]}`,
+	} {
+		rr = permissionRequest(t, handler, token, "PATCH", "/api/servers/one", body)
+		if rr.Code != 403 {
+			t.Fatalf("operator resource change %s: %d %s", body, rr.Code, rr.Body.String())
+		}
+	}
+	var ram, port int
+	if err := store.DB.QueryRow(`SELECT ram_mb,host_port FROM servers WHERE id='one'`).Scan(&ram, &port); err != nil || ram != 1024 || port != 25565 {
+		t.Fatalf("rejected change was applied: ram=%d port=%d err=%v", ram, port, err)
+	}
+	resources := auth.Access{Role: "custom", Permissions: []string{"servers.view", "servers.edit", "servers.resources"}, ServerIDs: []string{"one"}}
+	if err := users.UpdateAccountAccess(ctx, operator.ID, nil, nil, "", &resources); err != nil {
+		t.Fatal(err)
+	}
+	token, err = sessions.Create(ctx, operator.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr = permissionRequest(t, handler, token, "PATCH", "/api/servers/one", `{"ram_mb":2048}`)
+	if rr.Code != 200 || !strings.Contains(rr.Body.String(), `"ram_mb":2048`) {
+		t.Fatalf("granted resource change: %d %s", rr.Code, rr.Body.String())
+	}
+}
